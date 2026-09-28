@@ -94,6 +94,25 @@ public class MainActivity extends Activity implements RemoteCommandHandler {
                 Log.d(TAG, "onProgressChange: " + progress);
             }
         });
+        // FCP / title 日志用于区分黑屏性质：
+        // - 有 onFirstContentfulPaint 但仍黑屏 => SurfaceView 合成/GPU 驱动问题
+        // - 一直没有 onFirstContentfulPaint => 内容进程崩溃或页面未渲染
+        session.setContentDelegate(new GeckoSession.ContentDelegate() {
+            @Override
+            public void onTitle(GeckoSession session, String title) {
+                Log.i(TAG, "onTitle: " + title);
+            }
+
+            @Override
+            public void onFirstContentfulPaint(GeckoSession session) {
+                Log.i(TAG, "onFirstContentfulPaint");
+            }
+
+            @Override
+            public void onFullScreen(GeckoSession session, boolean fullScreen) {
+                Log.i(TAG, "onFullScreen: " + fullScreen);
+            }
+        });
         session.open(runtime);
         geckoView.setSession(session);
         setupLocalRemoteServer();
