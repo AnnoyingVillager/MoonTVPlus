@@ -94,15 +94,11 @@ public class MainActivity extends Activity implements RemoteCommandHandler {
                 Log.d(TAG, "onProgressChange: " + progress);
             }
         });
-        // FCP / title 日志用于区分黑屏性质：
+        // FCP 日志用于区分黑屏性质：
         // - 有 onFirstContentfulPaint 但仍黑屏 => SurfaceView 合成/GPU 驱动问题
         // - 一直没有 onFirstContentfulPaint => 内容进程崩溃或页面未渲染
+        // 注意：onTitle 在 GeckoView 126 的 ContentDelegate 中已移除，勿再加回
         session.setContentDelegate(new GeckoSession.ContentDelegate() {
-            @Override
-            public void onTitle(GeckoSession session, String title) {
-                Log.i(TAG, "onTitle: " + title);
-            }
-
             @Override
             public void onFirstContentfulPaint(GeckoSession session) {
                 Log.i(TAG, "onFirstContentfulPaint");
