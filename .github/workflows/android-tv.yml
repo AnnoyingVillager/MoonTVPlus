@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: '服务端 Base URL，不需要带 /tv，例如 https://example.com 或 http://192.168.1.10:3000'
+        description: '服务端 Base URL，不需要带 /tv，例如 https://example.com 或 http://192.168.10.1:3000'
         required: true
-        default: 'http://192.168.1.10:3000'
+        default: 'http://192.168.10.1:3000'
         type: string
       app_name:
         description: 'Android TV 应用名称'
