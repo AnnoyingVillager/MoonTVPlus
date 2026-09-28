@@ -23,6 +23,17 @@ on:
         required: false
         default: '1'
         type: string
+      variants:
+        description: '选择要构建的版本（安卓 5.1.1 电视请选 *-android5plus）'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - webview-android5plus
+          - geckoview-android5plus
+          - webview-android6plus
+          - geckoview-android6plus
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,33 +44,54 @@ permissions:
   actions: read
 
 jobs:
+  prepare:
+    name: Prepare build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        env:
+          VARIANTS: ${{ inputs.variants }}
+        run: |
+          declare -A FLAVOR=(
+            [webview-android6plus]=webview
+            [webview-android5plus]=webview
+            [geckoview-android6plus]=gecko
+            [geckoview-android5plus]=gecko
+          )
+          declare -A FLAVOR_TASK=(
+            [webview]=Webview
+            [gecko]=Gecko
+          )
+          declare -A MINSDK=(
+            [webview-android6plus]=23
+            [webview-android5plus]=21
+            [geckoview-android6plus]=23
+            [geckoview-android5plus]=21
+          )
+          if [ "$VARIANTS" = "all" ]; then
+            labels=(webview-android6plus webview-android5plus geckoview-android6plus geckoview-android5plus)
+          else
+            labels=("$VARIANTS")
+          fi
+          json="["
+          for l in "${labels[@]}"; do
+            f="${FLAVOR[$l]}"
+            json+="{\"label\":\"$l\",\"flavor\":\"$f\",\"flavor_task\":\"${FLAVOR_TASK[$f]}\",\"min_sdk\":\"${MINSDK[$l]}\"},"
+          done
+          json="${json%,}]"
+          echo "matrix=$json" >> "$GITHUB_OUTPUT"
+          echo "Selected matrix: $json"
+
   build:
-    name: Build Android TV APK (${{ matrix.variant }})
+    name: Build Android TV APK (${{ matrix.label }})
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - variant: standard-webview
-            flavor: webview
-            flavor_task: Webview
-            min_sdk: '23'
-            label: webview-android6plus
-          - variant: compat-webview
-            flavor: webview
-            flavor_task: Webview
-            min_sdk: '21'
-            label: webview-android5plus
-          - variant: standard-gecko
-            flavor: gecko
-            flavor_task: Gecko
-            min_sdk: '23'
-            label: geckoview-android6plus
-          - variant: compat-gecko
-            flavor: gecko
-            flavor_task: Gecko
-            min_sdk: '21'
-            label: geckoview-android5plus
+        include: ${{ fromJson(needs.prepare.outputs.matrix) }}
 
     steps:
       - name: Checkout source code
