@@ -54,16 +54,14 @@ public class MainActivity extends Activity implements RemoteCommandHandler {
         ));
 
         if (runtime == null) {
-            // 老盒子 GPU 驱动对 GeckoView 的 WebRender/硬件加速支持很差，
-            // 常见表现就是整屏黑屏。这里强制软件 WebRender 并关闭硬件加速相关能力。
-            Bundle prefs = new Bundle();
-            prefs.putBoolean("gfx.webrender.software", true);
-            prefs.putBoolean("layers.acceleration.disabled", true);
-            prefs.putBoolean("media.hardware-video-decoding.enabled", false);
-            prefs.putBoolean("media.getmediasources.enabled", false);
-            prefs.putBoolean("toolkit.telemetry.enabled", false);
+            // GeckoView 126 的 Builder 没有公开的任意 prefs 注入接口（软件渲染等偏好已非公开 API），
+            // 因此这里只用 126 确实存在的 Builder 方法：开启 about:config、把网页 console 与 Gecko 日志打到 logcat，
+            // 并允许明文 HTTP。这样一旦黑屏，可通过 adb logcat 直接定位真正原因，无需反复重编。
             GeckoRuntimeSettings settings = new GeckoRuntimeSettings.Builder()
-                    .preferencesBundle(prefs)
+                    .aboutConfigEnabled(true)
+                    .consoleOutput(true)
+                    .debugLogging(true)
+                    .allowInsecureConnections(GeckoRuntimeSettings.ALLOW_ALL)
                     .build();
             try {
                 runtime = GeckoRuntime.create(this, settings);
