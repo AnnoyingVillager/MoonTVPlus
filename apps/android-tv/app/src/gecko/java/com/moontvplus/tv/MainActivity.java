@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,12 +14,14 @@ import android.widget.FrameLayout;
 
 import org.json.JSONObject;
 import org.mozilla.geckoview.GeckoRuntime;
+import org.mozilla.geckoview.GeckoRuntimeSettings;
 import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.geckoview.GeckoView;
 
 import java.net.URLEncoder;
 
 public class MainActivity extends Activity implements RemoteCommandHandler {
+    private static final String TAG = "MoonTVGecko";
     private static GeckoRuntime runtime;
 
     private GeckoSession session;
@@ -51,7 +54,23 @@ public class MainActivity extends Activity implements RemoteCommandHandler {
         ));
 
         if (runtime == null) {
-            runtime = GeckoRuntime.create(this);
+            // 老盒子 GPU 驱动对 GeckoView 的 WebRender/硬件加速支持很差，
+            // 常见表现就是整屏黑屏。这里强制软件 WebRender 并关闭硬件加速相关能力。
+            Bundle prefs = new Bundle();
+            prefs.putBoolean("gfx.webrender.software", true);
+            prefs.putBoolean("layers.acceleration.disabled", true);
+            prefs.putBoolean("media.hardware-video-decoding.enabled", false);
+            prefs.putBoolean("media.getmediasources.enabled", false);
+            prefs.putBoolean("toolkit.telemetry.enabled", false);
+            GeckoRuntimeSettings settings = new GeckoRuntimeSettings.Builder()
+                    .preferencesBundle(prefs)
+                    .build();
+            try {
+                runtime = GeckoRuntime.create(this, settings);
+            } catch (Throwable error) {
+                Log.e(TAG, "GeckoRuntime.create failed", error);
+                throw error;
+            }
         }
 
         session = new GeckoSession();
@@ -59,6 +78,22 @@ public class MainActivity extends Activity implements RemoteCommandHandler {
             @Override
             public void onCanGoBack(GeckoSession session, boolean canGoBackValue) {
                 canGoBack = canGoBackValue;
+            }
+        });
+        session.setProgressDelegate(new GeckoSession.ProgressDelegate() {
+            @Override
+            public void onPageStart(GeckoSession session, String url) {
+                Log.i(TAG, "onPageStart: " + url);
+            }
+
+            @Override
+            public void onPageStop(GeckoSession session, boolean success) {
+                Log.i(TAG, "onPageStop success=" + success);
+            }
+
+            @Override
+            public void onProgressChange(GeckoSession session, int progress) {
+                Log.d(TAG, "onProgressChange: " + progress);
             }
         });
         session.open(runtime);
