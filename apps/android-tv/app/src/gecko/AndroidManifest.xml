@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- GeckoView flavor 覆盖清单：
+         创维 65Q3A（海思 8H56 / 酷开 / Android 5.1）上，硬件加速窗口无法正确为
+         SurfaceView 打洞合成，导致网页已绘制但屏幕全黑。
+         禁用应用窗口的硬件加速后，软件合成的窗口可正常透出 GeckoView 的 SurfaceView。
+         网页内容本身由 GeckoView 独立 GPU 进程直接渲染到 Surface，不受此开关影响。 -->
+    <application android:hardwareAccelerated="false" />
+</manifest>
