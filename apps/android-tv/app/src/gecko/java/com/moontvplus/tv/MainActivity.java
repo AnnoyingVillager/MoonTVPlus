@@ -18,7 +18,11 @@ import org.mozilla.geckoview.GeckoRuntimeSettings;
 import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.geckoview.GeckoView;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity implements RemoteCommandHandler {
     private static final String TAG = "MoonTVGecko";
@@ -54,17 +58,39 @@ public class MainActivity extends Activity implements RemoteCommandHandler {
         ));
 
         if (runtime == null) {
-            // GeckoView 126 的 Builder 没有公开的任意 prefs 注入接口（软件渲染等偏好已非公开 API），
-            // 因此这里只用 126 确实存在的 Builder 方法：开启 about:config、把网页 console 与 Gecko 日志打到 logcat，
-            // 并允许明文 HTTP。这样一旦黑屏，可通过 adb logcat 直接定位真正原因，无需反复重编。
-            GeckoRuntimeSettings settings = new GeckoRuntimeSettings.Builder()
+            // GeckoView Builder 不公开任意 prefs 注入接口，但 configFilePath() 支持从 YAML
+            // 文件读取 prefs/env/args（官方文档机制，见 mozilla automation.rst）。
+            // 部分老电视 SoC（如海思 8H56）的 GPU 驱动与 Gecko WebRender 不兼容，
+            // 表现为页面已绘制但屏幕全黑，这里强制软件 WebRender。
+            // 注意：该机制要求 SDK_INT > 21（Android 5.0 的 API 21 会被静默忽略）。
+            String configPath = null;
+            try {
+                File configFile = new File(getFilesDir(), "geckoview-config.yaml");
+                String yaml = "prefs:\n"
+                        + "  gfx.webrender.software: true\n"
+                        + "  layers.acceleration.disabled: true\n"
+                        + "  media.hardware-video-decoding.enabled: false\n"
+                        + "env:\n"
+                        + "  MOZ_DISABLE_GPU: '1'\n";
+                FileOutputStream out = new FileOutputStream(configFile);
+                out.write(yaml.getBytes(StandardCharsets.UTF_8));
+                out.close();
+                configPath = configFile.getAbsolutePath();
+                Log.i(TAG, "GeckoView soft-render config: " + configPath);
+            } catch (IOException error) {
+                Log.w(TAG, "Failed to write GeckoView config file", error);
+            }
+
+            GeckoRuntimeSettings.Builder builder = new GeckoRuntimeSettings.Builder()
                     .aboutConfigEnabled(true)
                     .consoleOutput(true)
                     .debugLogging(true)
-                    .allowInsecureConnections(GeckoRuntimeSettings.ALLOW_ALL)
-                    .build();
+                    .allowInsecureConnections(GeckoRuntimeSettings.ALLOW_ALL);
+            if (configPath != null) {
+                builder.configFilePath(configPath);
+            }
             try {
-                runtime = GeckoRuntime.create(this, settings);
+                runtime = GeckoRuntime.create(this, builder.build());
             } catch (Throwable error) {
                 Log.e(TAG, "GeckoRuntime.create failed", error);
                 throw error;
