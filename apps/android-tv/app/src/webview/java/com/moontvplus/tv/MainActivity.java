@@ -7,6 +7,7 @@ import android.net.http.SslError;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
@@ -102,6 +103,12 @@ public class MainActivity extends Activity implements RemoteCommandHandler {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 injectLocalRemoteInfo();
+                // 诊断：把系统 WebView 的 User-Agent（内含内核真实版本号）打到 logcat，
+                // 酷开系统无 dumpsys webviewupdate，需以此判断可兼容到什么程度。tag: MoonTVWebview
+                view.evaluateJavascript("navigator.userAgent", value ->
+                        Log.i("MoonTVWebview", "WebView UA=" + value));
+                view.evaluateJavascript("(function(){try{return String(!!window.fetch)+'|'+String(!!window.TextEncoder)+'|'+String(typeof Promise)+'|'+String(typeof Object.assign)+'|'+String(typeof Proxy)}catch(e){return 'ERR:'+e}})()", value ->
+                        Log.i("MoonTVWebview", "JS features fetch|TextEncoder|Promise|assign|Proxy=" + value));
             }
 
             @Override
